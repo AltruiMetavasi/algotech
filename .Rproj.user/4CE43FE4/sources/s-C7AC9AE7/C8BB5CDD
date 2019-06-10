@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1560156927661.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "C8BB5CDD",
+    "lastKnownWriteTime" : 1560161454,
+    "last_content_update" : 1560161454871,
+    "path" : "H:/algotech/content/blog/2019-01-29-purrr-operly-fitting-multiple-time-series-model.Rmd",
+    "project_path" : "content/blog/2019-01-29-purrr-operly-fitting-multiple-time-series-model.Rmd",
+    "properties" : {
+        "cursorPosition" : "15,19",
+        "scrollLine" : "0"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 7,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

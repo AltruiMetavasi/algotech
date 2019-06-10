@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1559630800611.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "AB5F8EBB",
+    "lastKnownWriteTime" : 1560156761,
+    "last_content_update" : 1560156761019,
+    "path" : "H:/algotech/config.toml",
+    "project_path" : "config.toml",
+    "properties" : {
+        "cursorPosition" : "91,359",
+        "scrollLine" : "0"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "toml"
+}

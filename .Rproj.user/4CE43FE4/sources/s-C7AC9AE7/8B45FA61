@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1560100423716.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "8B45FA61",
+    "lastKnownWriteTime" : 1560134428,
+    "last_content_update" : 1560134428725,
+    "path" : "H:/algotech/content/blog/2019-01-10-nested-dataframe.Rmd",
+    "project_path" : "content/blog/2019-01-10-nested-dataframe.Rmd",
+    "properties" : {
+        "cursorPosition" : "12,15",
+        "scrollLine" : "0"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 7,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

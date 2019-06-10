@@ -1,0 +1,134 @@
+---
+title: "Tingkat Kemiskinan Jateng"
+author: "Winata Syahputra"
+date: 1 April 2019
+output: 
+  flexdashboard::flex_dashboard:
+    storyboard: true
+    social: menu
+    source: embed
+---
+
+```{r setup, include=FALSE}
+#library
+library(dplyr)
+library(plyr)
+library(lubridate)
+library(flexdashboard)
+library(openxlsx)
+library(ggplot2)
+library(ggthemes)
+library(plotly)
+library(shiny)
+library(highcharter)
+library(leaflet)
+```
+
+```{r}
+#Data Cleaning
+data <- read.xlsx("E:/DQLab/DQLabJateng Dataset/data_kemiskinan_jateng.xlsx")
+data$kabupaten <- gsub("Kabupaten ","", data$kabupaten)
+data$tahun <- as.factor(data$tahun)
+data$jumlah <- as.numeric(data$jumlah)
+lokasi_gis <- unique(data[,c(1,4,5)])
+
+##data pertahun
+T12 <- data[data$tahun == 2012,]
+T13 <- data[data$tahun == 2013,]
+T14 <- data[data$tahun == 2014,]
+T15 <- data[data$tahun == 2015,]
+T16 <- data[data$tahun == 2016,]
+
+##rata-rata data pertahun
+rT12 <- mean(T12$jumlah)
+rT13 <- mean(T13$jumlah)
+rT14 <- mean(T14$jumlah)
+rT15 <- mean(T15$jumlah)
+rT16 <- mean(T16$jumlah)
+rata <- data.frame(Jumlah = c(rT12, rT13, rT14, rT15, rT16), Tahun = c(2012,2013,2014,2015,2016))
+rata <- rata %>% 
+  mutate(selisih = dplyr::lead(Jumlah),
+         selisih = Jumlah - selisih,
+         selisih = ifelse(is.na(selisih), "0", selisih))
+
+##Plot kemiskinan rata-rata
+kemiskinan <- ggplot(rata, aes(rata$Tahun, rata$Jumlah))+
+  geom_line(size= 1.3, color = 'blue')+
+  geom_point(size =2.3, alpha=1, color='blue')+
+  ggtitle("Rata-rata angka kemiskinan Jateng")+
+  theme_wsj(base_size =12, title_family = "mono") +
+  labs(title = "kemiskinan di Jateng", subtitle = "Rata-rata jumlah kemiskinan di Jawa Tengah tahun 2012 - 2016", caption = "Jumlah penduduk miskin (dalam ribuan)")
+
+##Import data rata-rata ke data utama
+###function
+ratarata <- function(x){
+  if(x == 2012){
+    rT12
+  }else if(x  == 2013){
+    rT13
+  }else if(x == 2014){
+    rT14
+  }else if(x == 2015){
+    rT15
+  }else{
+    rT16
+  }
+}
+###Importing data
+data$rata2 <- sapply(data$tahun, ratarata)
+data$perbedaan <- data$jumlah-data$rata2
+
+##Selisih rata-rata dengan angka tahunan
+data <- data%>%
+  group_by(kabupaten)%>%
+  mutate(selisih = dplyr::lead(jumlah),
+         selisih = jumlah - selisih,
+         selisih = ifelse(is.na(selisih),"0", selisih))
+data$selisih <- as.numeric(data$selisih)
+```
+
+Column
+-----------------------------------------------------------------------
+
+### Persebaran tinggat kemiskinan
+
+```{r}
+leaflet() %>%
+    addTiles() %>%
+    addMarkers(data = lokasi_gis, lng = ~longitude, lat = ~latitude, 
+               layerId = ~kabupaten, label=~kabupaten)
+
+lokasi_gis
+```
+
+***
+
+Data persebaran tingkat kemiskinan di Jawa Tengah
+Data ini meliputi tahun 2012 sampai dengan tahun 2016
+
+- Sumber data http://data.jatengprov.go.id/dataset/jumlah-penduduk-miskin-menurut-kabupaten-kota-di-provinsi-jawa-tengah-ribu-2012-2016
+
+### Rata-rata persebaran kemiskinan di Jawa Tengah
+
+```{r}
+ggplotly(kemiskinan)
+```
+
+***
+
+Dari plot yang ada dapat terlihat adanya penurunan signifikan rata-rata kemiskinan pada tahun 2013 ke tahun 2014
+
+- Penurunan kemiskinan sebesar 
+```{r}
+rata$selisih[2]
+```
+
+- Hipotesis awal penyebab penurunan tersebut karena adanya pemilihan umum Gubernur Jawa Tengah pada tahun 2013
+https://id.wikipedia.org/wiki/Pemilihan_umum_Gubernur_Jawa_Tengah_2013
+
+- Hipotesis lanjutannya adalah penerapan program yang dilakukan oleh pemenang pemilu, Ganjar Pranowo https://id.wikipedia.org/wiki/Ganjar_Pranowo, tepat sasaran.
+
+- Hal menarik lainnya adalah penurunan angka kemiskinan signifikan hanya pada saat tahun pemilihan umum 2013-2014. Setelah itu pergerakan kemiskinan hanya bergerak +- 2 juta jiwa
+```{r}
+rata
+```

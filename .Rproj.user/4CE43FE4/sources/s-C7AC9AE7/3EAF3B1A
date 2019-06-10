@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1559651651997.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "3EAF3B1A",
+    "lastKnownWriteTime" : 1560099393,
+    "last_content_update" : 1560099393442,
+    "path" : "H:/algotech/themes/hugo-future-imperfect/static/css/main.css",
+    "project_path" : "themes/hugo-future-imperfect/static/css/main.css",
+    "properties" : {
+        "cursorPosition" : "285,3",
+        "scrollLine" : "0"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "css"
+}

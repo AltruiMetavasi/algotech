@@ -1,0 +1,888 @@
+---
+title: "Time Series inclass"
+date: "5/21/2019"
+output: rmdformats::readthedown
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+library(tidyverse)
+library(tidyquant)
+library(forecast)
+library(plotly)
+```
+
+# Working with Time Series
+
+Analisis Time Series adalah analisis yang digunakan pada pengamatan interval waktu yang teratur. Ide utamanya untuk melakukan prediksi/peramalan di masa depan berdasarkan data masa lalu. Proses menghasilkan nilai di masa depan di sebut sebagai `forecasting`.
+
+```{r echo = FALSE}
+rmarkdown::paged_table(data.frame(
+  "Data" = c("Annual","Quarterly", "Monthly", "Weekly"),
+  "Frequency" = c(1,4,12,52)
+))
+```
+
+
+```{r echo = FALSE}
+rmarkdown::paged_table(data.frame(
+  "Data" = c("Daily", "Hourly", "Half-hourly", "Minutes", "Seconds"),
+  "Minute" = c(NA, NA, NA, NA, 60),
+  "Hour" = c(NA,NA,NA,60,3600),
+  "Day" = c(NA, 24, 48, 1440, 86400),
+  "Week" = c(7, 168, 336, 10080, 604800),
+  "Year" = c(362.25, 8766, 17532, 525960, 31557600)
+))
+```
+
+## Time Series in R
+
+- read data
+- object ts
+- plot window
+
+```{r}
+co2 <- read.csv("data_input/environment_1970f.csv")
+str(co2)
+```
+
+```{r}
+range(co2$year)
+```
+
+Membuat objek time series:
+
+1. Menggunakan fungsi `ts`.
+2. Argumen yang harus ada adalah:
+
+- datanya.
+- `start`: Tahun awal data tersebut.
+- `frequency`: jumlah observasi sebelum pola musiman (seasonal) berulang.
+
+```{r}
+co2_ts <- ts(data=co2$CO2.emissions..metric.tons.per.capita., 
+             start=1970, 
+             frequency=1)
+```
+
+```{r}
+class(co2_ts)
+```
+
+```{r}
+co2_ts
+```
+
+```{r}
+p <- autoplot(co2_ts) + theme_tq()
+ggplotly(p)
+```
+
+berdasarkan grafik diatas, kita bisa peroleh informasi pola trend dari data tersebut yang cenderung naik.
+
+```{r}
+p <- autoplot(window(co2_ts, start=1980, end=2000)) + theme_tq()
+ggplotly(p)
+```
+
+subset timeseries menggunakan `window`
+
+*Dive Deeper*
+
+presidents is a built-in dataset recording the quarterly Approval Ratings of US Presidents.
+
+1. What is the class of presidents? If it is not a time series object, convert it to a time series object.
+
+Answer here:
+
+```{r}
+presidents
+```
+
+```{r}
+class(presidents)
+```
+
+
+2. Plot the time series.
+
+Answer here:
+
+```{r}
+plot(presidents)
+```
+
+```{r}
+p <- autoplot(presidents) + theme_tq()
+ggplotly(p)
+```
+
+
+3. 2 hours and 8 minutes after John F.Kennedy’s assassination, amid suspicions of a conspiracy against the government, Lyndon Johnson was sworn in as president. His presidential term is between the last quarter of 1963 (hint:  start=c(1963,4)) to the last quarter of 1968. Create a time series plot for that time window using the appropriate start and end parameters for the window() function.
+
+Answer here:
+```{r}
+p <- autoplot(window(presidents, start = c(1963,4), end = c(1968,4))) + theme_tq()
+ggplotly(p)
+```
+
+
+4. Was Lydon Johnson a popular president during his presidential term?
+
+Answer here: No
+
+> Data approval rating: tolak ukur dukungan publik terhadap presiden selama masa jabatannya. 
+
+5. As a bonus exercise, give the plot an appropriate main title and axis labels (x and y).
+
+Answer here:
+
+```{r}
+
+```
+
+> Data Births: Data bulanan terkait jumlah kelahiran di New York City.
+
+
+```{r}
+births <- read.csv("data_input/nybirth.csv")
+str(births)
+```
+
+
+*Dive Deeper*:
+
+1. Convert the data to be a time series object, store to the name `births_ts`
+
+Answer here:
+
+```{r}
+head(births$date)
+tail(births$date)
+```
+
+Data bulanan, 1946-01-01 artinya adalah bulan januari di tahun 1946.
+
+```{r}
+births_ts <- ts(births$births, start = c(1946,1), frequency = 12)
+```
+
+```{r}
+p <- autoplot(births_ts) + theme_tq()
+ggplotly(p)
+```
+
+
+---------------
+
+1. Cara membuat objek time series menggunakan fungsi `ts`. Dimana argumen yang harus di isi adalah `data`, `starts`, `frequency`.
+2. Subset objek timeseries menggunakn fungsi `window`.
+
+[optional]
+
+```{r}
+births <- births %>% 
+  mutate(date = as.Date(date),
+         month = months(date))
+p <- births %>% 
+  ggplot(aes(x = date, births)) +
+  geom_line() +
+  geom_point(data = births %>% filter(month == "February" | month == "July"),
+             aes(x = date, y = births, color = month)) +
+  scale_color_manual(values = c("red","dodgerblue4")) +
+  theme_tq()
+
+plotly::ggplotly(p)
+```
+
+
+## Trend, Seasonality, Cycles and Residuals
+
+*Classical Decomposition*:
+
+- Trend: pola data secera general, cenderung naik atau cenderung turun.
+
+- Seasonal: pola yang berulang dengan periode waktu yang tetap/sama.
+
+- Residual/Error: komponen tidak beraturan yang tidak ditangkap oleh trend dan seasonal. Nilai residual berasal dari `objek_ts` - `seasonal` - `trend`.
+
+Model Additive: $X_t = T_t + S_t + E_t$
+
+Model Multiplicative: $X_t = T_t * S_t * E_t$
+
+```{r}
+str(decompose(births_ts))
+```
+
+```{r}
+births_dc <- decompose(births_ts)
+autoplot(births_dc) + theme_tq()
+```
+
+Ide utama dari proses decompose (menguraikan) objek time series adalah untuk melihat apakah model yang tepat untuk data kita:
+
+1. Model Additive: Model dimana data time series memiliki pola seasonal dan pola trend yang konstan.
+
+2. Multiplicative: Model dimana data time series pada waktu t merupakan hasil multiplikatif dari periode sebelumnya (2 kali lipat, atau 3 kali lipat, dst)
+
+*Dive Deeper*:
+
+1. Look at the following plot of an airline passenger time series. Recall that an additive model is appropriate if the seasonal and random variation is constant. Do you think this time series is better described using an additive or multiplicative model?
+
+```{r}
+data("AirPassengers")
+plot(AirPassengers)
+```
+
+```{r}
+class(AirPassengers)
+```
+
+
+2. Is it possible to transform the air passengers data such that it can be described using an additive model?
+
+```{r}
+c(7.389056, 33.115451, 148.413159, 665.141633, 2980.957987)
+```
+
+```{r}
+log(c(7.389056, 33.115451, 148.413159, 665.141633, 2980.957987))
+```
+
+```{r}
+plot(log(AirPassengers))
+```
+
+*breakdown the three components*:
+
+1. trend
+
+```{r}
+trend_air <- ma(AirPassengers, order = 12, centre = T)
+p <- autoplot(trend_air) + theme_tq() +
+  labs(y = "", title = "Trend Component")
+ggplotly(p)
+```
+
+
+2. Seasonal
+
+```{r}
+detrend_air <- AirPassengers / trend_air
+p <- autoplot(detrend_air) + theme_tq() + labs(y = "", title = "Detrend time series")
+ggplotly(p) 
+```
+
+
+```{r}
+m_air <- t(matrix(data = detrend_air, nrow = 12))
+seasonal_air <- colMeans(m_air, na.rm = T)
+seasonal_air <- seasonal_air/mean(seasonal_air)
+seasonal_air <- ts(rep(seasonal_air,12), 
+                   start = start(AirPassengers),
+                   frequency = 12)
+p <- autoplot(seasonal_air) + 
+  theme_tq() +
+  labs(y = "",
+       title = "Seasonality Component")
+ggplotly(p)
+```
+
+3. Random
+
+```{r}
+random_air <- AirPassengers / (trend_air * seasonal_air)
+p <- autoplot(random_air) + theme_tq() + labs(y = "",
+                                              title = "Random Component")
+ggplotly(p)
+```
+
+*Reconstruct Original Data*:
+
+> Model Multiplicative: $X_t = T_t * S_t * E_t$
+
+```{r}
+recomposed_air <- trend_air * seasonal_air * random_air
+p <- autoplot(recomposed_air) + theme_tq() + labs(y = "", title = "Reconstruc time Series")
+ggplotly(p)
+```
+
+Seasonality Adjusted adalah data time series yang telah disesuaikan tanpa terdapat efek seasonal (musiman).
+
+```{r}
+seasadj_air <- trend_air * random_air
+p <- autoplot(seasadj_air) + theme_tq() + labs(y = "", title = "Seasonality Adjusted, time Series")
+ggplotly(p)
+```
+
+
+## Mathematical detail of time sereis decomposition
+
+```{r}
+trend_birth <- ma(births_ts, order = 12)
+p <- autoplot(trend_birth) + theme_tq() +
+  labs(y = "", title = "Trend Component")
+ggplotly(p)
+```
+
+```{r}
+c(0.5, rep_len(1, 12-1), 0.5)/12
+```
+
+```{r}
+frq <- 7
+rep_len(1, frq)/frq
+```
+
+```{r}
+sum(
+as.vector(births_ts[1])*0.04166667,
+as.vector(births_ts[2:12])*0.08333333,
+as.vector(births_ts[13])*0.04166667
+)
+```
+
+```{r}
+sum(
+as.vector(births_ts[2])*0.04166667,
+as.vector(births_ts[3:13])*0.08333333,
+as.vector(births_ts[14])*0.04166667
+)
+```
+
+```{r}
+f <- frequency(births_ts)
+index <- seq.int(1L, length(births_ts), by = f) - 1L
+index
+```
+
+```{r}
+prd <- length(births_ts)/frequency(births_ts)
+# if multiplicative: births_ts/births_dc$trend
+detrend <- births_ts - births_dc$trend
+
+# initialize figure to 0 0 0 0 0 ... 0 (12 times)  
+figure <- numeric(f)
+
+for (i in 1:f)
+      figure[i] <- mean(detrend[index + i], na.rm = TRUE)
+    
+# if multiplicative: figure / mean(figure)
+figure <- figure - mean(figure)
+ 
+ssnl <- ts(rep(figure, prd)[seq_len(length(births_ts))], start = start(births_ts), frequency = f)
+ssnl
+```
+
+```{r}
+detrend_birth <- births_ts - trend_birth
+p <- autoplot(detrend_birth) + theme_tq() + labs(y = "", title = "Detrend time series")
+ggplotly(p) 
+```
+
+
+
+```{r}
+m_birth <- t(matrix(data = detrend_birth, nrow = 12))
+seasonal_birth <- colMeans(m_birth, na.rm = T)
+seasonal_birth <- seasonal_birth - mean(seasonal_birth)
+seasonal_birth <- ts(rep(seasonal_birth,14), start = start(births_ts), frequency = 12)
+p <- autoplot(seasonal_birth) + 
+  theme_tq() +
+  labs(y = "",
+       title = "Seasonality Component")
+ggplotly(p)
+```
+
+```{r}
+random_birth <- births_ts - trend_birth - seasonal_birth
+p <- autoplot(random_birth) + theme_tq()
+ggplotly(p)
+```
+
+```{r}
+recomposed_birth <- trend_birth + seasonal_birth + random_birth
+p <- autoplot(recomposed_birth) + theme_tq() + labs(y = "", title = "Reconstruc time Series")
+ggplotly(p)
+```
+
+```{r}
+p <- autoplot(births_ts) + theme_tq()
+ggplotly(p)
+```
+
+
+Discussion:
+
+1. Compare the above to the seasonal component that our decomposition function returned. Are they identical?
+
+```{r}
+str(decompose(births_ts))
+```
+
+
+```{r}
+identical(seasonal_birth, decompose(births_ts)$seasonal)
+```
+
+```{r}
+identical(seasonal_air, decompose(AirPassengers, type = "multiplicative")$seasonal)
+```
+
+
+2. Using births_ts, trn and ssnl, can you estimate the random components in our time series? trn and ssnl are the components we calculated by hand, and we already confirmed in earlier exercises that they are the same as the outputs from the classical decomposition function built-in with R.
+
+```{r}
+random_birth <- births_ts - trend_birth - seasonal_birth
+```
+
+
+3. I’ve read the following data and save it to an object named souvenir. Create a time series using the data above and name it souvenir_ts.
+
+```{r}
+souvenir <- scan("data_input/fancy.dat")
+souvenir_ts <- ts(souvenir, frequency = 12, start = c(1987,1))
+```
+
+Plot the time series. Can you tell if an additive model is appropriate for this time series?
+
+Write your solution for (Q3) below:
+
+```{r}
+plot(souvenir_ts)
+```
+
+transformasi log untuk mengubah model multiplicative menjadi model additive.
+
+```{r}
+souvenir_lts <- log(souvenir_ts)
+plot(souvenir_lts)
+```
+
+Mengambil informasi seasonality adjusted dari time series souvenir.
+
+```{r}
+souvenir_dc <- decompose(souvenir_lts)
+souvenir_sadj <- souvenir_lts - souvenir_dc$seasonal
+plot(souvenir_sadj)
+```
+
+
+----------------------
+
+Recap materi sebelum istirahat
+
+1. Syarat membuat model timeseries adalah data historis harus mempunyai pola yang teratur/jelas.
+2. apabila ada data historis yang kosong, harus di lengkapi terlebih dahulu.
+3. Membuat objek timeseries menggunakn fungsi `ts`: dimana terdapat argumen, `data`, `starts`, `frequency`. Misal kita punya data harian, kemudian ingin menangkap pola seasonal mingguan, maka frequency menjadi 7. 
+4. Time series memiliki 3 komponen, trend, seasonal, residual. Untuk menguraikan ketiga komponen tersebut dapat menggunakan fungsi `decompose`.
+5. Model additive vs model multiplicative. Kalau misalnya diperoleh data yang pola multiplicative maka lebih dilakukan transformasi (log) supaya hasilnya menjadi additive.
+6. Sebelum melakukan permodelan forecasting, ada tahap exploratory data analysis. Salah satu cara yang dapat dilakukan adalah mengeleminasi pola seasonal untuk memperoleh time series tanpa seasonal (seasonality adjusted).
+
+----------------------
+
+Model forecasting yang umum digunakan:
+
+1. Simple Moving Averages.
+2. Exponential Smoothing.
+    - Simple Exponential Smoothing
+    - Double Exponential Smoothing / Holt Exponential Smoothing
+    - Triple Exponential Smoothing / Holt's Winter Exponential Smoothing
+3. ARIMA
+
+## Forecast SMA
+
+Ide utamanya untuk melakukan peramalan di masa depan berdasrkan rata-rata di masa lalu. Tepat digunakan jika datanya tidak mengandung trend dan seasonality.
+
+Senin  12
+Selasa 13
+Rabu   10
+Kami   4
+Jumat  5
+Sabtu  6
+Minggu? 
+
+n = 3, 
+
+```{r}
+library(TTR)
+co2_tsm <- SMA(co2_ts, n=5)
+```
+
+argumen yang harus ada di `SMA`:
+1. Data ts
+2. n = ordo/berapa periode yang dipertimbangkan untuk melakukan peramalan di masa depan.
+
+```{r}
+future1 <- mean(tail(co2_ts, 5))
+future2 <- mean(tail(co2_ts, 4), future1)
+future3 <- mean(tail(co2_ts, 3), future1, future2)
+future1; future2; future3
+```
+
+```{r}
+plot(co2$CO2.emissions..metric.tons.per.capita., type="l")
+co2_sma <- SMA(co2_ts, n=5)
+lines(c(co2_sma, future1, future2, future3), col="dodgerblue4", lty=2)
+```
+
+
+# Forecast Exponential Smoothing
+
+## Simple Exponential Smoothing
+
+> Simple Exponential Smoothing = no trend, no seasonality
+
+```{r}
+rain <- scan("data_input/precip1.dat", skip=1)
+rain_ts <- ts(rain, start=c(1813))
+p <- autoplot(rain_ts) + theme_tq()
+ggplotly(p)
+```
+
+Pada di plot di atas, tidak terdapat pola trend dan pola seasonality. Maka cukup tepat untuk menggunakan metode simple exponential smoothing.
+
+Untuk membuat model forecasting SES, dapat menggunakn fungsi `ets()`.
+kemudian argumen yang harus diisi:
+1. data ts.
+2. model
+
+> ets singkatannya error, trend dan seasonal. jika model yang kita tentukan adalah `ANN` artinya, kita mengasumsikan data time series yang dimiliki error nya additive, no trend, dan no seasonal. 
+
+3. alpha: untuk smoothing overall. range antara 0 sampai 1. ketika mendekati 1 maka bobot yang dierikan akan lebih besar pada observasi yang baru. Jika mendekati 0, maka bobot akan lebih besar diberikan pada observasi yang lalu.
+
+
+*dibawah ini contoh pemilihan model yang kurang tepat*.
+
+```{r}
+co2_ets <- ets(co2_ts, model="ANN", alpha=0.2)
+co2_ets$fitted
+```
+
+`co2_ets$fitted` untuk melihat hasil forecasting.
+
+```{r}
+co2_ets$residual
+```
+
+`co2_ets$residual` untuk melihat nilai error.
+
+$F_{t+1}=F_t+\alpha * e_t$
+
+untuk forecast periode ke-2:
+```{r}
+co2_ets$fitted[1] + 0.2 * co2_ets$residual[1]
+```
+
+untuk forecast periode ke-3:
+```{r}
+co2_ets$fitted[2] + 0.2 * co2_ets$residual[2]
+```
+
+untuk forecast periode ke-4:
+```{r}
+co2_ets$fitted[3] + 0.2 * co2_ets$residual[3]
+```
+
+```{r}
+co2_ets$fitted[2:4]
+```
+
+```{r}
+p <- autoplot(co2_ts) + theme_tq() + autolayer(co2_ets$fitted)
+ggplotly(p)
+```
+
+Discussion:
+
+Sepertinya `model = "ANN"` tidak tepat untuk kasus data timeseries di atas. Karena terdapat pola trend yang tidak dipertimbangkan. Bagaiamana kita mengubah kode model forcast untuk mempertimbangkan trend?
+
+```{r}
+co2_ettrend <- ets(co2_ts, model="AAN") # Double Exponential Smoothing
+```
+
+saat pembuatan model forecast, kita tidak mendefinisikan argumen alpha dan beta, sehingga model `ets` akan mengembalikan nilai alpha dan beta yang terbaik menurutnya.
+
+```{r}
+co2_ettrend
+```
+
+beta: 0.0689  -> smoothing untuk pola trend nya.
+
+-----
+
+penggunakan fungsi `ets` argumen model:
+
+1. ketika data time series, ada trend (Additive), tidak seasonal -> model = `AAN`.
+2. ketika data time series, tidak ada trend, tidak ada seasonal -> model = `ANN`.
+
+```{r}
+p <- autoplot(co2_ts, series = "Actual") + theme_tq() + autolayer(co2_ettrend$fitted, series = "Fitted")
+ggplotly(p)
+```
+
+setelah kita mengubah model untuk objek `co2_ts` dari `ANN` ke model `AAN` menghasilkan performa yang lebih bagus. Kenapa? Karena di data co2 memang terdapat trend sehingga lebih tepat menggunakan model `AAN`.
+
+
+model `AAN` nilai error nya lebih kecil dibandingkan model `ANN`:
+
+Mean Absolute Error (MAE).
+
+```{r}
+MLmetrics::MAE(co2_ettrend$fitted, co2_ts) # model ets AAN (Double Exponential Smoothing / Holt Exponential Smoothing)
+```
+
+```{r}
+MLmetrics::MAE(co2_ets$fitted, co2_ts) # model ets ANN (Simple Exponential Smoothing)
+```
+
+
+
+Fungsi `ets` dan `HoltWinters` memiliki tujuan yang sama, yaitu untuk permodelan forecasting exponential smoothing.
+
+Persamaannya:
+
+- jika ets model `ANN`, maka HoltWinters(beta = F, gamma = F) # SES
+- jika ets model `AAN`, maka HoltWinters(beta = T, gamma = F) # Holt
+
+
+```{r}
+co2_ses <- HoltWinters(co2_ts, beta = F, gamma=F) # Simple Exponential Smoothing
+co2_ses
+MLmetrics::MAE(co2_ses$fitted[,1], co2_ts)
+```
+
+```{r}
+co2_ses$alpha
+```
+
+Melakukan forecasting untuk 4 periode ke-depan:
+
+```{r}
+co2_sesfut <- predict(co2_ses, n.ahead = 4)
+```
+
+`forecast` function:
+
+melakukan forecasting menggunakan model SES. 
+
+```{r}
+co2_sesf <- forecast(co2_ses, h=4)
+co2_sesf
+```
+
+Hasil forecast untuk 4 periode kedepan nilai nya sama. Karena model SES tidak mempertimbangkan pola trend dan seasonal, maka hasilnya akan selalu flat. Karakteristiknya SES cocok digunakan untuk forecast data tanpa trend dan seasonal dan hanya 1 perode kedepan.
+
+forecast tahun 2013:
+
+$F_{t+1}=F_t + \alpha * e_{t}$
+$F_{2013}=F_{2012} + \alpha * e_{2012}$
+
+```{r}
+alp <- co2_sesf$model$alpha
+co2_sesf$fitted[43] + alp * co2_sesf$residuals[43]
+```
+
+## Holt / Double Exponential Smoothing
+
+> Holt = trend, no seasonality
+
+```{r}
+co2_holt <- HoltWinters(co2_ts, gamma=F) # Double Exponential Smoothing / Holt Exponential Smoothing
+co2_holt
+MLmetrics::MAE(co2_holt$fitted[,1], co2_ts)
+```
+
+```{r}
+# plot(co2_hw, main="CO2 Emissions (ton) per capita, Indonesia")
+p <- autoplot(co2_holt$x, series = "Actual") + autolayer(co2_holt$fitted[,1], series = "Fitted") + theme_tq()
+ggplotly(p)
+```
+
+```{r}
+co2_holt$alpha # smoothing overall
+```
+
+```{r}
+co2_holt$beta # smoothing trend
+```
+
+
+```{r}
+co2_holtfut <- predict(co2_holt, n.ahead = 4)
+```
+
+```{r}
+co2_holtfut
+```
+
+
+```{r}
+p <- autoplot(co2_holt$x, series = "Actual") + 
+  autolayer(co2_holt$fitted[,1], series = "Fitted") + 
+  autolayer(co2_holtfut, series = "Forecast") +
+  theme_tq() +
+  labs(title = "Holt Exponential Smoothing Forecasting")
+ggplotly(p)
+```
+
+
+------------
+
+## Holt Winter Exponential Smoothing
+
+> Holt Winter = trend, seasonality
+
+```{r}
+souvenir <- scan("data_input/fancy.dat", quiet = T)
+souvenir_ts <- ts(souvenir, frequency = 12, start = c(1987,1))
+plot(souvenir_ts)
+```
+
+karena multiplicative, kita perlu lakukan tranformasi log untuk menjadikan model additive.
+
+- nilai gamma: untuk smoothing seasonality.
+
+```{r}
+souv_hw <- HoltWinters(log(souvenir_ts))
+souv_hw
+```
+
+forecasting 24 periode kedepan dengan model Holt Winter.
+
+```{r}
+souv_hwf <- forecast(souv_hw, h=24)
+autoplot(souv_hwf) + theme_tq()
+```
+
+Dive Deeper:
+
+1. Lakukan perbandingan metode Holt Winter, untuk data yang sebelum di transformasi dan data yang setelah di transformasi (log). Forecast untuk 24 Periode kedepan.
+
+```{r}
+souv_hw_multi <- HoltWinters(souvenir_ts)
+souv_hw_multi
+```
+
+```{r}
+souv_hwf_multi <- forecast(souv_hw_multi, h=24)
+autoplot(souv_hwf_multi) + theme_tq()
+```
+
+--------------------
+
+Step by Step Forecasting:
+
+1. Pastikan data complete. Kalau misalnya ada data yang hilang, lebih baik di lengkapi lebih dahulu. Atau diisi dengan 0 / NA.
+
+2. Objek timeseries dengan `ts` dan yang perlu diperhatikan adalah argumen frequency. Kita ingin mengekstrak pola seasonal apa. Disesuakian dengan frequency nya.
+
+3. Plot objek ts, kalau polanya multiplicative, maka lebih baik lakukan transformasi log untuk menjadi model additive.
+
+4. Melakukan decompose time series untuk mengurai ketiga komponen time series (trend, seasonal, residual). Jika nanti diperolah trend yang masih membentuk sebuah pola, maka artinya masih ada seasonality yang tidak ditangkap.
+
+5. Masuk ke permodelan, role of thumb dibandingkan seluruh metode nya. Kemudain dicari error yang paling kecil.
+
+--------------------- Day 1
+
+Day 2:
+
+1. Model Evaluation
+2. Uji Asumsi
+3. Metode ARIMA
+4. Demo LBB (Optional).
+
+# Model Evaluation
+
+## Error
+
+1. Sum Square Error
+
+```{r}
+library(MLmetrics)
+```
+
+```{r}
+souv_hw$SSE
+```
+
+```{r}
+sum((souv_hw$fitted[,1] - souv_hw$x)^2)
+```
+
+2. Root Mean Squared Error
+
+```{r}
+RMSE(souv_hw$fitted[,1], souv_hw$x)
+```
+
+```{r}
+sqrt(mean((souv_hw$fitted[,1] - souv_hw$x)^2))
+```
+
+3. Mean Absolute Error
+
+```{r}
+MAE(souv_hw$fitted[,1],souv_hw$x)
+```
+
+```{r}
+mean(abs(souv_hw$fitted[,1] - souv_hw$x))
+```
+
+4. Mean Absolute Percentage Error
+
+```{r}
+MAPE(souv_hw$fitted[,1], souv_hw$x)*100
+```
+
+```{r}
+mean(abs((souv_hw$fitted[,1] - souv_hw$x)/souv_hw$x)*100)
+```
+
+Metrics evaluasi diatas gunanya sebagai pembanding beberapa model yang kita buat. Jadi kita tentukan model terbaiknya berdasarkan nilai error yang paling kecil.
+
+
+## Assumption Checking
+
+1. ACF PACF plot & Ljung-Box Test (Autocorrelation testing)
+
+```{r}
+resids2 <- souv_hwf$residuals[!is.na(souv_hwf$residuals)]
+acf(resids2, lag.max=20)
+```
+
+L-jung box test. 
+
+H0 : Tidak terdapat autokorelasi pada data residual. (yang kita inginkan)
+H1 : terdapat autokorelasi pada data residual.
+
+tolak H0 jika pvalue < 0.05.
+
+```{r}
+Box.test(resids2, lag=20, type="Ljung-Box")
+```
+
+Diperoleh pvalue sebesar 0.6183, maka keputusannya terima H0. Artinya tidak terjadi autokorelasi pada residual model.
+
+2. Residual are Normally Distributed.
+
+```{r}
+plot(resids2, pch=19, cex=0.5, ylim=c(-1, 1))
+abline(h=0, col="dodgerblue4")
+```
+
+```{r}
+hist(resids2, breaks=15, xlim=c(-1, 1))
+abline(v=0, lwd=2, col="green")
+```
+
+```{r}
+shapiro.test(resids2)
+```
+
+H0 : Residual Berdistribusi Normal
+H1 : Residual tidak berdistribusi Normal
+
+Karena p-value = 0,6187 maka keputusannya p-value > 0.05 (terima H0). Artinya model forecasting kita memberikan residual yang berdistirbusi normal.
